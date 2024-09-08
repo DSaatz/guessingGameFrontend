@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect } from 'react'
 import { getRandomYear, getAlbumsFromYear, getInventionsFromYear, getEventsFromYear, getMoviesFromYear } from '../lib/utils'
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ChevronUp, ChevronDown } from 'lucide-react'
 
 interface RoundProps {
   onGameEnd: (score: number) => void
@@ -13,6 +14,8 @@ interface RoundProps {
 }
 
 const hints = ["album", "invention", "event", "movie"]
+const FIRST_POSSIBLE_YEAR = 1948
+const LAST_POSSIBLE_YEAR = 2020
 
 export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
   const [year, setYear] = useState<number | null>(null)
@@ -29,7 +32,6 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
   const [isRoundOver, setIsRoundOver] = useState<boolean>(false)
   const [guessesLeft, setGuessesLeft] = useState<number>(4)
   const [message, setMessage] = useState<string>('')
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('warning')
   const [canRevealHint, setCanRevealHint] = useState<boolean>(true)
 
   useEffect(() => {
@@ -37,10 +39,11 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
   }, [])
 
   useEffect(() => {
+    if (roundsPlayed > 0) {
+      onRoundComplete(score)
+    }
     if (roundsPlayed >= 5) {
       onGameEnd(score)
-    } else if (roundsPlayed > 0) {
-      onRoundComplete(score)
     }
   }, [roundsPlayed, score, onGameEnd, onRoundComplete])
 
@@ -90,17 +93,21 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
   const handleGuess = () => {
     if (guessesLeft === 4 && !Object.values(revealed).some(Boolean)) {
       setMessage('You must reveal at least one hint before guessing.')
-      setAlertType('warning')
+      return
+    }
+
+    const guessNumber = parseInt(guess)
+    if (isNaN(guessNumber) || guessNumber < FIRST_POSSIBLE_YEAR || guessNumber > LAST_POSSIBLE_YEAR) {
+      setMessage(`Please enter a valid year between ${FIRST_POSSIBLE_YEAR} and ${LAST_POSSIBLE_YEAR}.`)
       return
     }
 
     const correctYear = year ?? 0
-    if (guess === String(correctYear)) {
+    if (guessNumber === correctYear) {
       const hintsUsed = 4 - guessesLeft
       const pointsEarned = 4 - hintsUsed
       setScore(prevScore => prevScore + pointsEarned)
       setMessage(`Correct! You earned ${pointsEarned} points.`)
-      setAlertType('success')
       setIsRoundOver(true)
       setTimeout(() => {
         setRoundsPlayed(prev => prev + 1)
@@ -110,11 +117,9 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
       setGuessesLeft(prev => prev - 1)
       if (guessesLeft > 1) {
         setMessage('Incorrect. Try again with another hint.')
-        setAlertType('warning')
         setCanRevealHint(true)
       } else {
-        setMessage(`Incorrect. The correct year was ${correctYear}.`)
-        setAlertType('error')
+        setMessage(`Incorrect. The correct year was <strong class="font-bold">${correctYear}</strong>.`)
         setIsRoundOver(true)
         setTimeout(() => {
           setRoundsPlayed(prev => prev + 1)
@@ -123,6 +128,20 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
       }
     }
     setGuess('')
+  }
+
+  const incrementYear = () => {
+    setGuess(prev => {
+      const currentYear = parseInt(prev) || FIRST_POSSIBLE_YEAR - 1
+      return Math.min(currentYear + 1, LAST_POSSIBLE_YEAR).toString()
+    })
+  }
+
+  const decrementYear = () => {
+    setGuess(prev => {
+      const currentYear = parseInt(prev) || FIRST_POSSIBLE_YEAR + 1
+      return Math.max(currentYear - 1, FIRST_POSSIBLE_YEAR).toString()
+    })
   }
 
   return (
@@ -139,7 +158,7 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
             </CardHeader>
             <CardContent>
               {revealed[hint] ? (
-                <p className="text-sm">{values[hint]}</p>
+                <p className="text-sm min-h-[2.5rem]">{values[hint]}</p>
               ) : (
                 <Button 
                   onClick={() => handleBoxClick(hint)} 
@@ -155,28 +174,54 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
         ))}
       </div>
       <div className="flex flex-col sm:flex-row gap-4 items-center w-full max-w-md mb-4">
-        <Input
-          type="number"
-          min="1948"
-          max="2020"
-          value={guess}
-          onChange={(e) => setGuess(e.target.value)}
-          placeholder="Enter year"
-          className="flex-grow"
-          disabled={isRoundOver}
-        />
+        <div className="relative w-full">
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={guess}
+            onChange={(e) => setGuess(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder={FIRST_POSSIBLE_YEAR.toString()}
+            className="text-2xl py-6 px-4 text-center w-full pr-16"
+            disabled={isRoundOver}
+          />
+          <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">
+            Year:
+          </span>
+          <div className="absolute inset-y-0 right-0 flex flex-col justify-center mr-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={incrementYear}
+              disabled={isRoundOver || parseInt(guess) >= LAST_POSSIBLE_YEAR}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={decrementYear}
+              disabled={isRoundOver || parseInt(guess) <= FIRST_POSSIBLE_YEAR}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <Button 
           onClick={handleGuess} 
           disabled={isRoundOver || guess === ''}
-          className="w-full sm:w-auto transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-primary-dark"
+          className="w-full sm:w-auto py-6 text-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-green-500 hover:text-white"
         >
           Submit Guess
         </Button>
       </div>
       {message && (
-        <Alert className={`mb-4 w-full max-w-md ${alertType === 'success' ? 'bg-green-100 text-green-800' : alertType === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-          <AlertTitle className="font-bold">{alertType === 'success' ? 'Success!' : alertType === 'error' ? 'Error!' : 'Attention!'}</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
+        <Alert className="mb-4 w-full max-w-md">
+          <AlertTitle>Result</AlertTitle>
+          <AlertDescription dangerouslySetInnerHTML={{ __html: message }} />
         </Alert>
       )}
       <p className="text-lg font-semibold">Guesses left: {guessesLeft}</p>
