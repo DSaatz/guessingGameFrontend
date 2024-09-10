@@ -1,11 +1,12 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { loadEnvConfig } from "@next/env";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const API_URL = 'http://127.0.0.1:8000';
+const API_URL = process.env.API;
 
 export async function getRandomYear() {
   const response = await fetch(`${API_URL}/random_year`);
