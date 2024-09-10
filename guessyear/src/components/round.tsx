@@ -39,13 +39,10 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
   }, [])
 
   useEffect(() => {
-    if (roundsPlayed > 0) {
-      onRoundComplete(score)
-    }
     if (roundsPlayed >= 5) {
       onGameEnd(score)
     }
-  }, [roundsPlayed, score, onGameEnd, onRoundComplete])
+  }, [roundsPlayed, score, onGameEnd])
 
   const startNewRound = async () => {
     if (roundsPlayed >= 5) {
@@ -110,7 +107,8 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
       setMessage(`Correct! You earned ${pointsEarned} points.`)
       setIsRoundOver(true)
       setTimeout(() => {
-        setRoundsPlayed(prev => prev + 1)
+        setRoundsPlayed(prev => prev + 1) // Increment only after the delay
+        onRoundComplete(score + pointsEarned) // Pass updated score to parent
         startNewRound()
       }, 2000)
     } else {
@@ -122,7 +120,8 @@ export default function Round({ onGameEnd, onRoundComplete }: RoundProps) {
         setMessage(`Incorrect. The correct year was <strong class="font-bold">${correctYear}</strong>.`)
         setIsRoundOver(true)
         setTimeout(() => {
-          setRoundsPlayed(prev => prev + 1)
+          setRoundsPlayed(prev => prev + 1) // Increment only after the delay
+          onRoundComplete(score) // Pass current score to parent
           startNewRound()
         }, 2000)
       }
